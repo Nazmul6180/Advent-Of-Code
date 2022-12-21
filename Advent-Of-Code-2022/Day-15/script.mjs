@@ -6,6 +6,7 @@ const lines = readFileSync("input.txt", { encoding: "utf-8" }) // read day??.txt
   .trim() // Remove starting/ending whitespace
   .split("\n"); // Split on newline
 
+
 const regexp =
   /Sensor at x=(?<sensorX>-?\d+), y=(?<sensorY>-?\d+): closest beacon is at x=(?<beaconX>-?\d+), y=(?<beaconY>-?\d+)/;
 
