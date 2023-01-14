@@ -1,113 +1,95 @@
-const bfs = (rows, states, starting, ending, startingTime) => {
-    let queue = [{ position: { x: starting.x, y: starting.y }, minute: startingTime }];
-    let visited = [`${starting.x},${starting.y},0`];
-    while (queue.length > 0) {
-        let current = queue.shift();
+import { createInterface as createReadlineInterface } from 'node:readline';
 
-        let nextMove = [
-            { x: current.position.x + 1, y: current.position.y },
-            { x: current.position.x, y: current.position.y + 1 },
-            { x: current.position.x - 1, y: current.position.y },
-            { x: current.position.x, y: current.position.y - 1 },
-            { x: current.position.x, y: current.position.y }
-        ];
+async function readBoard() {
+    const board = []
 
-        for (let move of nextMove) {
-            if (move.x == ending.x && move.y == ending.y) return current.minute + 1;
+    for await (const line of createReadlineInterface({ input: process.stdin })) {
+        board.push(line.split(''))
+    }
 
-            if (move.x < 0 || move.x >= rows[0].length ||
-                move.y < 0 || move.y >= rows.length ||
-                states[(current.minute + 1) % (rows.length * rows[0].length)].has(`${move.x},${move.y}`) ||
-                visited.includes(`${move.x},${move.y},${current.minute + 1}`) ||
-                rows[move.y][move.x] == '#') {
-                continue;
-            }
+    return board
+}
 
-            visited.push(`${move.x},${move.y},${current.minute + 1}`)
-            queue.push({ position: move, minute: current.minute + 1 });
+function createBoardAfter(board, m) {
+    const h = board.length
+    const w = board[0].length
+
+    const newboard = Array(h).fill().map(() => Array(w).fill())
+
+    for (let i = 0; i < h; i++) {
+        for (let j = 0; j < w; j++) {
+            newboard[i][j] = board[i][j] === '#' ? '#' : '.'
         }
     }
-}
 
-const part1 = async input => {
-    let blizzards = [];
-    let starting = { x: 0, y: 0 }, ending = { x: 0, y: 0 };
-    let rows = input.split('\n');
-    rows.forEach((line, y) => {
-        line.split('').forEach((character, x) => {
-            if (character.match(/[\^\<\>v]/g)) blizzards.push({ position: { x, y }, direction: ['^', '>', 'v', '<'].indexOf(character) })
-            else if (character == '.' && y == 0) starting = { x, y };
-            else if (character == '.' && y == rows.length - 1) ending = { x, y };
-        });
-    });
-
-    // precompute all blizzards with periodic movement
-    let states = [];
-    let directions = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
-    for (let i = 0; i <= rows.length * rows[0].length; i++) {
-        states[i] = blizzards.reduce((set, blizzard) => {
-            set.add(`${blizzard.position.x},${blizzard.position.y}`);
-            return set;
-        }, new Set());
-
-        blizzards = blizzards.map(blizzard => {
-            let newPosition = { x: blizzard.position.x + directions[blizzard.direction].x, y: blizzard.position.y + directions[blizzard.direction].y };
-            if (newPosition.x == 0) newPosition.x = rows[0].length - 2;
-            else if (newPosition.x == rows[0].length - 1) newPosition.x = 1;
-            else if (newPosition.y == 0) newPosition.y = rows.length - 2;
-            else if (newPosition.y == rows.length - 1) newPosition.y = 1;
-
-            return {
-                position: newPosition,
-                direction: blizzard.direction
+    for (let i = 0; i < h; i++) {
+        for (let j = 0; j < w; j++) {
+            if (board[i][j] === '>') {
+                newboard[i][(j - 1 + m) % (w - 2) + 1] = '>'
             }
-        });
+
+            if (board[i][j] === '<') {
+                newboard[i][((j - 1 - m) % (w - 2) + (w - 2)) % (w - 2) + 1] = '<'
+            }
+
+            if (board[i][j] === 'v') {
+                newboard[(i - 1 + m) % (h - 2) + 1][j] = 'v'
+            }
+
+            if (board[i][j] === '^') {
+                newboard[((i - 1 - m) % (h - 2) + (h - 2)) % (h - 2) + 1][j] = '^'
+            }
+        }
     }
 
-    return bfs(rows, states, starting, ending, 0);
+    return newboard
 }
 
-const part2 = async input => {
-    let blizzards = [];
-    let starting = { x: 0, y: 0 }, ending = { x: 0, y: 0 };
-    let rows = input.split('\n');
-    rows.forEach((line, y) => {
-        line.split('').forEach((character, x) => {
-            if (character.match(/[\^\<\>v]/g)) blizzards.push({ position: { x, y }, direction: ['^', '>', 'v', '<'].indexOf(character) })
-            else if (character == '.' && y == 0) starting = { x, y };
-            else if (character == '.' && y == rows.length - 1) ending = { x, y };
-        });
-    });
+function calculatePathDuration(board, s, d, mo = 0) {
+    const h = board.length
+    const w = board[0].length
 
-    // precompute all blizzards with periodic movement
-    let states = [];
-    let directions = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
-    for (let i = 0; i <= rows.length * rows[0].length; i++) {
-        states[i] = blizzards.reduce((set, blizzard) => {
-            set.add(`${blizzard.position.x},${blizzard.position.y}`);
-            return set;
-        }, new Set());
+    const dp = Array(h).fill().map(() => Array(w).fill(-1))
 
-        blizzards = blizzards.map(blizzard => {
-            let newPosition = { x: blizzard.position.x + directions[blizzard.direction].x, y: blizzard.position.y + directions[blizzard.direction].y };
-            if (newPosition.x == 0) newPosition.x = rows[0].length - 2;
-            else if (newPosition.x == rows[0].length - 1) newPosition.x = 1;
-            else if (newPosition.y == 0) newPosition.y = rows.length - 2;
-            else if (newPosition.y == rows.length - 1) newPosition.y = 1;
+    dp[s[0]][s[1]] = 0
 
-            return {
-                position: newPosition,
-                direction: blizzard.direction
+    for (let m = 0; dp[d[0]][d[1]] === -1; m++) {
+        const mboard = createBoardAfter(board, mo + m + 1)
+        const update = []
+
+        for (let i = 0; i < h; i++) {
+            for (let j = 0; j < w; j++) {
+                if (dp[i][j] === m) {
+                    for (const [di,dj] of [[0,0],[-1,0],[+1,0],[0,-1],[0,+1]]) {
+                        if (mboard[i + di]?.[j + dj] === '.') {
+                            update.push([i + di, j + dj])
+                        }
+                    }
+                }
             }
-        });
+        }
+
+        for (const [i,j] of update) {
+            dp[i][j] = m + 1
+        }
     }
 
-    let firstTrip = bfs(rows, states, starting, ending, 0);
-    console.log(firstTrip);
-    let secondTrip = bfs(rows, states, ending, starting, firstTrip);
-    console.log(secondTrip);
-
-    return bfs(rows, states, starting, ending, secondTrip);
+    return dp[d[0]][d[1]]
 }
 
-export { part1, part2 };
+const board = await readBoard()
+
+const h = board.length
+const w = board[0].length
+
+const s = [0,1]
+const d = [h - 1, w - 2]
+
+let mo = 0
+
+const m1 = calculatePathDuration(board, s, d, mo)
+const m2 = calculatePathDuration(board, d, s, mo += m1)
+const m3 = calculatePathDuration(board, s, d, mo += m2)
+
+console.log(m1, m2, m3)
+console.log(m1 + m2 + m3)
